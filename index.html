@@ -1,14 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Multiplayer Survival</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+<meta charset="utf-8" />
+<title>Multiplayer Survival – Test Mode</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+  body {
+    margin: 0;
+    background: #0b0b0b;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+
+<!-- Ably CDN -->
+<script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <script src="game.js"></script>
+
+<canvas id="game"></canvas>
+
+<script>
+/* ================== CONFIG ================== */
+/* ⚠️ TESTING ONLY – DO NOT USE IN PRODUCTION */
+const ABLY_API_KEY = "65zICw.K9e0bg:N2dKwI0OSycr4igmYf3OXAtUIIqHWv9eR3ueuGqiHAU";
+/* ============================================ */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+/* ---------------- GAME STATE ---------------- */
+const playerId = Math.random().toString(36).slice(2);
+const players = {};
+
+players[playerId] = {
+  id: playerId,
+  x: canvas.width / 2,
+  y: canvas.height / 2
+};
+
+/* ---------------- CONTROLS ---------------- */
+const keys = {};
+addEventListener("keydown", e => keys[e.key] = true);
+addEventListener("keyup", e => keys[e.key] = false);
+
+/* ---------------- ABLY ---------------- */
+const ably = new Ably.Realtime({
+  key: ABLY_API_KEY,
+  clientId: playerId
+});
+
+const channel = ably.channels.get("test-room");
+
+/* SEND STATE */
+setInterval(() => {
+  channel.publish("state", players[playerId]);
+}, 50);
+
+/* RECEIVE STATE */
+channel.subscribe("state", msg => {
+  players[msg.data.id] = msg.data;
+});
+
+/* ---------------- GAME LOOP ---------------- */
+function update() {
+  const me = players[playerId];
+  if (keys.w) me.y -= 4;
+  if (keys.s) me.y += 4;
+  if (keys.a) me.x -= 4;
+  if (keys.d) me.x += 4;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const id in players) {
+    const p = players[id];
+    ctx.fillStyle = id === playerId ? "#4CAF50" : "#2196F3";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
 </body>
 </html>
